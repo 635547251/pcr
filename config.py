@@ -1,7 +1,7 @@
-DB_USERNAME = "root"
+DB_USERNAME = ""
 DB_PASSWORD = ""
 DB_HOSTNAME = ""
-DB_DATABASE = "PCR"
+DB_DATABASE = ""
 
 
 # 日志配置参数
