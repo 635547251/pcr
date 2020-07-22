@@ -3,18 +3,10 @@ import json
 import random
 from multiprocessing import Process, Queue
 
-# import requests
-# from requests.adapters import HTTPAdapter
-
 from .spiders.logutil import init_logging, log_process_func
 from .spiders.pcr_spider import pcr_spider
 
 url = "https://www.pcrdfans.com/battle"
-
-# 重连
-# s = requests.Session()
-# s.mount('http://', HTTPAdapter(max_retries=10))
-# s.mount('https://', HTTPAdapter(max_retries=10))
 
 # 随机获取ua
 f = json.loads(open("pcr/spiders/ua_headers.json", "r").read())
