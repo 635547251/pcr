@@ -14,7 +14,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
 from ..config import (DB_DATABASE, DB_HOSTNAME, DB_PASSWORD, DB_USERNAME,
-                      ch_blacklist, common_wait_time, get_team_page,
+                      ch_whitelist, common_wait_time, get_team_page,
                       pos2ch_dic)
 from .logutil import init_logging
 
@@ -103,7 +103,7 @@ class PcrSpiders(Thread):
                     # 获取人物
                     ch = pos2ch(chara.get_attribute("style"))
                     # 排除角色
-                    if ch not in ch_blacklist:
+                    if ch not in ch_whitelist:
                         continue
                     logging.info("获取角色%s" % ch)
                     # 搜索阵容
