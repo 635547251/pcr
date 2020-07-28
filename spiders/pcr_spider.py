@@ -41,18 +41,22 @@ def insert_team(params):
         with conn.cursor() as cursor:
             insert_sql = '''
                     insert ignore into
-                        T_TEAM (ATTACK_TEAM, DEFENSE_TEAM)
+                        T_TEAM (ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT)
                     values
-                        ("%s", "%s")
+                        ("{ATTACK_TEAM}", "{DEFENSE_TEAM}", "{GOOD_COMMENT}", "{BAD_COMMENT}")
+                    on duplicate key update
+                    GOOD_COMMENT = "{GOOD_COMMENT}",
+                    BAD_COMMENT = "{BAD_COMMENT}"
                 '''
             try:
                 for param in params:
-                    cursor.execute(insert_sql % param)
+                    cursor.execute(insert_sql.format(**param))
                 conn.commit()
                 logging.info("插入表T_TEAM完成")
             except Exception as e:
                 logging.error(e)
                 # conn.rollback()
+                raise
 
 
 def pos2ch(s):
@@ -93,13 +97,13 @@ class PcrSpiders(Thread):
                 m.click()
                 time.sleep(common_wait_time)
                 # 人物列表
-                character_list = m.find_elements_by_xpath("./div[2]/div/div")
+                character_list = m.find_elements_by_xpath("./div[2]/div[1]/div")
                 for chara in character_list:
                     # TODO 循环后显示'NoneType' object has no attribute 'group'
                     # 获取人物
                     ch = pos2ch(chara.get_attribute("style"))
                     # 排除角色
-                    if ch in ch_blacklist:
+                    if ch not in ch_blacklist:
                         continue
                     logging.info("获取角色%s" % ch)
                     # 搜索阵容
@@ -114,15 +118,15 @@ class PcrSpiders(Thread):
                         time.sleep(0.5)
                     time.sleep(common_wait_time)
 
-                    # 获取4页防守阵容
+                    # 获取get_team_page页防守阵容
                     team_list, next_but = [], None
                     for i in range(get_team_page):
                         # 每页结果阵容
                         res_list = driver.find_elements_by_class_name(
                             "battle_search_single_result_ctn")
                         if next_but is None:
-                            next_but = driver.find_element_by_xpath(
-                                "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]")
+                            next_but = WebDriverWait(driver, 10).until(
+                                lambda driver: driver.find_element(By.XPATH, "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]"))
                         for res in res_list:
                             # 每个结果阵容
                             defense_team, attack_team = "", ""
@@ -137,11 +141,22 @@ class PcrSpiders(Thread):
                                     attack_team += c + "|"
                                 else:
                                     defense_team += c + "|"
+                            # 获取好评差评数
+                            good_comment = res.find_element_by_xpath(
+                                "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
+                            bad_comment = res.find_element_by_xpath(
+                                "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
                             if attack_team and defense_team and ch in defense_team:
                                 team_list.append(
-                                    (attack_team[:-1], defense_team[:-1]))
-                                logging.info("进攻方:%s 防守方:%s" % (
-                                    attack_team[:-1], defense_team[:-1]))
+                                    {
+                                        "ATTACK_TEAM": attack_team[:-1],
+                                        "DEFENSE_TEAM": defense_team[:-1],
+                                        "GOOD_COMMENT": int(good_comment),
+                                        "BAD_COMMENT": int(bad_comment)
+                                    }
+                                )
+                                logging.info("进攻方:%s 防守方:%s 好评:%s 差评:%s" % (
+                                    attack_team[:-1], defense_team[:-1], good_comment, bad_comment))
                         if i < get_team_page - 1:
                             next_but.click()
                             logging.info("%s阵容点击下一页" % ch)
