@@ -128,6 +128,13 @@ class PcrSpiders(Thread):
                             next_but = WebDriverWait(driver, 10).until(
                                 lambda driver: driver.find_element(By.XPATH, "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]"))
                         for res in res_list:
+                            # 获取好评差评数
+                            good_comment = res.find_element_by_xpath(
+                                "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
+                            bad_comment = res.find_element_by_xpath(
+                                "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
+                            if good_comment == bad_comment == "0":
+                                continue
                             # 每个结果阵容
                             defense_team, attack_team = "", ""
                             team = res.find_elements_by_xpath(
@@ -141,11 +148,6 @@ class PcrSpiders(Thread):
                                     attack_team += c + "|"
                                 else:
                                     defense_team += c + "|"
-                            # 获取好评差评数
-                            good_comment = res.find_element_by_xpath(
-                                "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
-                            bad_comment = res.find_element_by_xpath(
-                                "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
                             if attack_team and defense_team and ch in defense_team:
                                 team_list.append(
                                     {
