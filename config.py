@@ -1,7 +1,7 @@
-DB_USERNAME = ""
-DB_PASSWORD = ""
-DB_HOSTNAME = ""
-DB_DATABASE = ""
+DB_USERNAME = "root"
+DB_PASSWORD = "123456789"
+DB_HOSTNAME = "127.0.0.1"
+DB_DATABASE = "PCR"
 
 
 # 日志配置参数
@@ -75,3 +75,6 @@ pos2ch_dic = {
     "-51.6667px -103.333px": "镜子",
     "-103.333px -258.333px": "xcw"
 }
+
+
+ranking = 10  # 获取排名前n名数据
