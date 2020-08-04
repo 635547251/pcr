@@ -139,9 +139,7 @@ def get_ch_attend_and_win_chart(ch_attend_rate, ch_win_rate, title, height=0.8, 
                  "{:.2%}".format(y), va="center", ha="left", label="出场率")
 
 
-if __name__ == "__main__":
-    pcr_team = get_pcr_team()
-
+def main(pcr_team):
     fig = plt.figure(figsize=(16, 8))
     fig.canvas.set_window_title("pcr国服各角色出场率TOP%s及胜率" % ranking)  # 窗口名
     fig.subplots_adjust(left=0.1, right=0.97, top=0.95,
@@ -176,3 +174,7 @@ if __name__ == "__main__":
         ch_4_combo_rate, ch_4_combo_win_rate, "4人组合")
 
     plt.show()
+
+
+if __name__ == "__main__":
+    main(get_pcr_team())
