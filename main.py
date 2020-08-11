@@ -1,8 +1,10 @@
+import json
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import ticker
 
-from .config import ranking
+from .config import main_tank, other_list, ranking
 from .spiders.pcr_spider import get_connection
 
 # 这两行代码解决 plt 中文显示的问题
@@ -10,11 +12,26 @@ plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
 
+def backtrace(n, t_list, output, i=0, res=[], merge=True):
+    if len(res) == n:
+        if merge:
+            output["|".join(res)] = output.get(
+                "|".join(res), 0) + 1
+        else:
+            output.append(res)
+        return
+    else:
+        for j in range(i, len(t_list)):
+            backtrace(n, t_list, output, j + 1, res + [t_list[j]], merge)
+
+
 def get_pcr_team():
     with get_connection() as conn:
         with conn.cursor() as cursor:
             select_sql = '''
-                    select ATTACK_TEAM, DEFENSE_TEAM from T_TEAM
+                    select
+                        ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT
+                    from T_TEAM
                 '''
             try:
                 cursor.execute(select_sql)
@@ -29,7 +46,7 @@ def get_ch_attend(pcr_team):
     统计各个人物出场率
     '''
     team = set()
-    for attack_team, defense_team in pcr_team:
+    for attack_team, defense_team, _, _ in pcr_team:
         team.add(attack_team)
         team.add(defense_team)
     team_len = len(team)
@@ -50,7 +67,7 @@ def get_ch_win(pcr_team):
     统计各个人物胜率
     '''
     ch_win_time, ch_all_time, ch_win_rate = {}, {}, {}
-    for attack_team, defense_team in pcr_team:
+    for attack_team, defense_team, _, _ in pcr_team:
         for ch in attack_team.split("|"):
             ch_win_time[ch] = ch_win_time.get(ch, 0) + 1
             ch_all_time[ch] = ch_all_time.get(ch, 0) + 1
@@ -63,22 +80,12 @@ def get_ch_win(pcr_team):
     return ch_win_rate
 
 
-def backtrace(n, t_list, ch_combo_time, i=0, res=[]):
-    if len(res) == n:
-        ch_combo_time["|".join(res)] = ch_combo_time.get(
-            "|".join(res), 0) + 1
-        return
-    else:
-        for j in range(i, len(t_list)):
-            backtrace(n, t_list, ch_combo_time, j + 1, res + [t_list[j]])
-
-
 def get_ch_combo_attend(pcr_team, n=2):
     '''
     统计n人组合出场次数、出场率
     '''
     team, ch_combo_attend_time, ch_combo_attend_rate = set(), {}, {}
-    for attack_team, defense_team in pcr_team:
+    for attack_team, defense_team, _, _ in pcr_team:
         team.add(attack_team)
         team.add(defense_team)
     team_len = len(team)
@@ -96,7 +103,7 @@ def get_ch_combo_win(pcr_team, n=2):
     统计n人组合胜场次数、胜率
     '''
     ch_combo_win_time, ch_combo_lose_time, ch_combo_win_rate = {}, {}, {}
-    for attack_team, defense_team in pcr_team:
+    for attack_team, defense_team, _, _ in pcr_team:
         backtrace(n, attack_team.split("|"), ch_combo_win_time)
         backtrace(n, defense_team.split("|"), ch_combo_lose_time)
     for k, v in ch_combo_win_time.items():
@@ -139,7 +146,10 @@ def get_ch_attend_and_win_chart(ch_attend_rate, ch_win_rate, title, height=0.8, 
                  "{:.2%}".format(y), va="center", ha="left", label="出场率")
 
 
-def main(pcr_team):
+def get_ch_data_label(pcr_team):
+    '''
+    获取各角色出场率胜率图表
+    '''
     fig = plt.figure(figsize=(16, 8))
     fig.canvas.set_window_title("pcr国服各角色出场率TOP%s及胜率" % ranking)  # 窗口名
     fig.subplots_adjust(left=0.1, right=0.97, top=0.95,
@@ -176,5 +186,71 @@ def main(pcr_team):
     plt.show()
 
 
+def get_team_data(pcr_team, is_get=True):
+    def _backtrace(n, t_list, output, i=0, res=[]):
+        if len(res) == n:
+            output.append(tuple(res))
+            return
+        else:
+            for j in range(i, len(t_list)):
+                if res:
+                    # 去除重复角色
+                    for ch in t_list[j].split("|"):
+                        if ch in "|".join(res):
+                            break
+                    else:
+                        _backtrace(n, t_list, output, j + 1, res + [t_list[j]])
+                else:
+                    _backtrace(n, t_list, output, j + 1, res + [t_list[j]])
+
+    if is_get:
+        # 获取我的所有阵容
+        my_chlist, all_team = set(main_tank + other_list), set()
+        for attack_team, defense_team, _, _ in pcr_team:
+            d_sp = defense_team.split("|")
+            for ch in d_sp:
+                if ch not in my_chlist or d_sp[-1] not in main_tank:
+                    break
+            else:
+                if defense_team not in all_team:
+                    all_team.add(defense_team)
+        all_team = list(all_team)
+        # 获取我的所有pjjc阵容记录
+        all_pjjc_team, res = [], []
+        _backtrace(3, all_team, all_pjjc_team)
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                select_sql = '''
+                        select
+                            ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT
+                        from
+                            T_TEAM
+                        where
+                            DEFENSE_TEAM in ('%s', '%s', '%s')
+                    '''
+                try:
+                    for pjjc_team in all_pjjc_team:
+                        cursor.execute(select_sql % pjjc_team)
+                        res.append(cursor.fetchall())
+                except Exception as e:
+                    print(e)
+                    raise
+        # 保存数据
+        data = []
+        for tup in res:
+            d = {}
+            for attack_team, defense_team, good_comment, bad_comment in tup:
+                d[defense_team] = d.get(
+                    defense_team, []) + [[attack_team, good_comment, bad_comment]]
+            data.append(d)
+        with open("./pcr/data.json", "w") as fd:
+            json.dump(data, fd, ensure_ascii=False, indent=2)
+    else:
+        with open("./pcr/data.json", "r") as fd:
+            data = json.load(fd)
+
+
 if __name__ == "__main__":
-    main(get_pcr_team())
+    pcr_team = get_pcr_team()
+    get_ch_data_label(pcr_team)
+    get_team_data(pcr_team, False)
