@@ -14,7 +14,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
 from ..config import (DB_DATABASE, DB_HOSTNAME, DB_PASSWORD, DB_USERNAME,
-                      ch_whitelist, common_wait_time, pos2ch_dic)
+                      ch_whitelist, common_wait_time, pos2ch_6x_dic,
+                      pos2ch_dic)
 from .logutil import init_logging
 
 
@@ -59,7 +60,10 @@ def insert_team(params):
 
 
 def pos2ch(s):
-    return pos2ch_dic.get(re.match(r"(.*?)background-position:(.*?);(.*?)", s).group(2).strip())
+    r = re.match(
+        r'.*?url\("(.*?)\.png\?.*?"\);.*?background-position:(.*?);.*?', s)
+    url, pos = r.group(1).split("/")[-1], r.group(2)
+    return pos2ch_dic.get(pos.strip()) if url == "charas" else pos2ch_6x_dic.get(pos.strip()) if url == "charas6x" else None
 
 
 class PcrSpiders(Thread):
@@ -69,7 +73,7 @@ class PcrSpiders(Thread):
 
     def run(self):
         options = webdriver.chrome.options.Options()
-        options.add_argument("--headless")
+        # options.add_argument("--headless")
         driver = webdriver.Chrome(options=options)
         # driver.implicitly_wait(5)
         '''隐式等待和显示等待都存在时，超时时间取二者中较大的'''
@@ -148,7 +152,7 @@ class PcrSpiders(Thread):
                                 "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
                             bad_comment = res.find_element_by_xpath(
                                 "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
-                            if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "" or int(good_comment) + int(bad_comment) < 5:
+                            if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "" or int(good_comment) + int(bad_comment) < 3:
                                 i += 1
                                 continue
                             # 每个结果阵容
@@ -175,10 +179,10 @@ class PcrSpiders(Thread):
                                 )
                                 logging.info("进攻方:%s 防守方:%s 好评:%s 差评:%s" % (
                                     attack_team[:-1], defense_team[:-1], good_comment, bad_comment))
+                        if not team_list or i == len(res_list):
+                            break
                         # 入库
                         insert_team(team_list)
-                        if i == len(res_list):
-                            break
                         # 判断下一页是否能点击
                         is_next = driver.find_element_by_xpath(
                             "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]").is_enabled()
