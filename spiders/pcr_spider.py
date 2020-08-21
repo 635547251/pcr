@@ -40,13 +40,16 @@ def insert_team(params):
     with get_connection() as conn:
         with conn.cursor() as cursor:
             insert_sql = '''
-                    insert ignore into
-                        T_TEAM (ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT)
+                    insert into
+                        T_TEAM (ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT,
+                            CREATE_TIMESTAMP, UPDATE_TIMESTAMP)
                     values
-                        ("{ATTACK_TEAM}", "{DEFENSE_TEAM}", "{GOOD_COMMENT}", "{BAD_COMMENT}")
+                        ("{ATTACK_TEAM}", "{DEFENSE_TEAM}", "{GOOD_COMMENT}", "{BAD_COMMENT}",
+                        "{CREATE_TIMESTAMP}", "{UPDATE_TIMESTAMP}")
                     on duplicate key update
-                    GOOD_COMMENT = "{GOOD_COMMENT}",
-                    BAD_COMMENT = "{BAD_COMMENT}"
+                        GOOD_COMMENT = "{GOOD_COMMENT}",
+                        BAD_COMMENT = "{BAD_COMMENT}",
+                        UPDATE_TIMESTAMP = "{UPDATE_TIMESTAMP}"
                 '''
             try:
                 for param in params:
@@ -152,9 +155,11 @@ class PcrSpiders(Thread):
                                 "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
                             bad_comment = res.find_element_by_xpath(
                                 "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
-                            if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "" or int(good_comment) + int(bad_comment) < 3:
+                            if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "" or int(good_comment) + int(bad_comment) < 5:
                                 i += 1
                                 continue
+                            timestamp = res.find_element_by_xpath(
+                                "./div[@class='battle_search_single_meta']/div[2]").text.strip()
                             # 每个结果阵容
                             defense_team, attack_team = "", ""
                             team = res.find_elements_by_xpath(
@@ -174,7 +179,9 @@ class PcrSpiders(Thread):
                                         "ATTACK_TEAM": attack_team[:-1],
                                         "DEFENSE_TEAM": defense_team[:-1],
                                         "GOOD_COMMENT": int(good_comment),
-                                        "BAD_COMMENT": int(bad_comment)
+                                        "BAD_COMMENT": int(bad_comment),
+                                        "CREATE_TIMESTAMP": timestamp,
+                                        "UPDATE_TIMESTAMP": timestamp
                                     }
                                 )
                                 logging.info("进攻方:%s 防守方:%s 好评:%s 差评:%s" % (
