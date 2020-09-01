@@ -1,4 +1,5 @@
 # coding:utf-8
+import json
 import logging
 import re
 import time
@@ -12,8 +13,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
 from ..common import get_connection
-from ..config import ch_whitelist, common_wait_time, pos2ch_6x_dic, pos2ch_dic
+from ..config import common_wait_time
 from .logutil import init_logging
+
+with open("pcr/conf/ch.json", "r") as f:
+    d = json.load(f)
+    ch_whitelist = d["ch_whitelist"]
+    pos2ch_dic, pos2ch_6x_dic = d["pos2ch_dic"], d["pos2ch_6x_dic"]
 
 
 def insert_team(params):
