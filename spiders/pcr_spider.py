@@ -1,11 +1,9 @@
 # coding:utf-8
-import contextlib
 import logging
 import re
 import time
 from threading import Thread
 
-import pymysql
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
@@ -13,26 +11,9 @@ from selenium.webdriver.common.by import By
 # from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
 
-from ..config import (DB_DATABASE, DB_HOSTNAME, DB_PASSWORD, DB_USERNAME,
-                      ch_whitelist, common_wait_time, pos2ch_6x_dic,
-                      pos2ch_dic)
+from ..common import get_connection
+from ..config import ch_whitelist, common_wait_time, pos2ch_6x_dic, pos2ch_dic
 from .logutil import init_logging
-
-
-@contextlib.contextmanager
-def get_connection():
-    conn = pymysql.connect(host=DB_HOSTNAME,
-                           user=DB_USERNAME,
-                           password=DB_PASSWORD,
-                           database=DB_DATABASE,
-                           charset="utf8")
-    try:
-        yield conn
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
 def insert_team(params):
@@ -45,11 +26,11 @@ def insert_team(params):
                             CREATE_TIMESTAMP, UPDATE_TIMESTAMP)
                     values
                         ("{ATTACK_TEAM}", "{DEFENSE_TEAM}", "{GOOD_COMMENT}", "{BAD_COMMENT}",
-                        "{CREATE_TIMESTAMP}", "{UPDATE_TIMESTAMP}")
+                        "{CREATE_TIMESTAMP}", current_timestamp())
                     on duplicate key update
                         GOOD_COMMENT = "{GOOD_COMMENT}",
                         BAD_COMMENT = "{BAD_COMMENT}",
-                        UPDATE_TIMESTAMP = "{UPDATE_TIMESTAMP}"
+                        UPDATE_TIMESTAMP = current_timestamp()
                 '''
             try:
                 for param in params:
@@ -180,8 +161,7 @@ class PcrSpiders(Thread):
                                         "DEFENSE_TEAM": defense_team[:-1],
                                         "GOOD_COMMENT": int(good_comment),
                                         "BAD_COMMENT": int(bad_comment),
-                                        "CREATE_TIMESTAMP": timestamp,
-                                        "UPDATE_TIMESTAMP": timestamp
+                                        "CREATE_TIMESTAMP": timestamp
                                     }
                                 )
                                 logging.info("进攻方:%s 防守方:%s 好评:%s 差评:%s" % (
