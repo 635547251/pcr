@@ -63,7 +63,7 @@ class PcrSpiders(Thread):
 
     def run(self):
         options = webdriver.chrome.options.Options()
-        # options.add_argument("--headless")
+        options.add_argument("--headless")
         driver = webdriver.Chrome(options=options)
         # driver.implicitly_wait(5)
         '''隐式等待和显示等待都存在时，超时时间取二者中较大的'''
