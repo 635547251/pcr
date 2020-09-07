@@ -4,6 +4,7 @@ import logging
 import re
 import time
 from threading import Thread
+from typing import Dict, List
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -22,7 +23,11 @@ with open("pcr/conf/ch.json", "r") as f:
     pos2ch_dic, pos2ch_6x_dic = d["pos2ch_dic"], d["pos2ch_6x_dic"]
 
 
-def insert_team(params):
+def insert_team(params: List[Dict]):
+    '''
+    插入数据
+    :param  参数列表
+    '''
     conn = get_connection()
     with get_connection() as conn:
         with conn.cursor() as cursor:
@@ -49,7 +54,12 @@ def insert_team(params):
                 raise
 
 
-def pos2ch(s):
+def pos2ch(s: str):
+    '''
+    坐标转人物
+    :param  s   坐标
+    :reutrn ch  人物
+    '''
     r = re.match(
         r'.*?url\("(.*?)\.png\?.*?"\);.*?background-position:(.*?);.*?', s)
     url, pos = r.group(1).split("/")[-1], r.group(2)

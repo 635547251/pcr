@@ -7,6 +7,9 @@ from .config import DB_DATABASE, DB_HOSTNAME, DB_PASSWORD, DB_USERNAME
 
 @contextlib.contextmanager
 def get_connection():
+    '''
+    建立数据库游标上下文
+    '''
     conn = pymysql.connect(host=DB_HOSTNAME,
                            user=DB_USERNAME,
                            password=DB_PASSWORD,
