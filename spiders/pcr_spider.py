@@ -98,9 +98,8 @@ class PcrSpiders(Thread):
                     # 获取人物
                     try:
                         ch = pos2ch(chara.get_attribute("style"))
-                    except AttributeError as e:
-                        logging.error(e)
-                        break
+                    except AttributeError:
+                        raise
                     # 排除角色
                     if ch not in ch_whitelist:
                         continue
@@ -214,7 +213,7 @@ class PcrSpiders(Thread):
             raise
         except Exception as e:
             logging.error(e)
-            raise
+            # raise
         finally:
             driver.quit()
 
