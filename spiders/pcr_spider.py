@@ -4,7 +4,7 @@ import logging
 import re
 import time
 from threading import Thread
-from typing import Dict, List
+from typing import List
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -13,45 +13,17 @@ from selenium.webdriver.common.by import By
 # from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
 
-from ..common import get_connection
-from ..config import common_wait_time
+from ..config import common_wait_time, start_time
+from ..db import get_pcr_team, insert_team
+from ..main import get_ch_attend_and_win
 from .logutil import init_logging
 
 with open("pcr/conf/ch.json", "r") as f:
     d = json.load(f)
     ch_whitelist = d["ch_whitelist"]
     pos2ch_dic, pos2ch_6x_dic = d["pos2ch_dic"], d["pos2ch_6x_dic"]
-
-
-def insert_team(params: List[Dict]):
-    '''
-    插入数据
-    :param  参数列表
-    '''
-    conn = get_connection()
-    with get_connection() as conn:
-        with conn.cursor() as cursor:
-            insert_sql = '''
-                    insert into
-                        T_TEAM (ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT,
-                            CREATE_TIMESTAMP, UPDATE_TIMESTAMP)
-                    values
-                        ("{ATTACK_TEAM}", "{DEFENSE_TEAM}", "{GOOD_COMMENT}", "{BAD_COMMENT}",
-                        "{CREATE_TIMESTAMP}", current_timestamp())
-                    on duplicate key update
-                        GOOD_COMMENT = "{GOOD_COMMENT}",
-                        BAD_COMMENT = "{BAD_COMMENT}",
-                        UPDATE_TIMESTAMP = current_timestamp()
-                '''
-            try:
-                for param in params:
-                    cursor.execute(insert_sql.format(**param))
-                conn.commit()
-                logging.info("插入表T_TEAM完成")
-            except Exception as e:
-                logging.error(e)
-                # conn.rollback()
-                raise
+    main_tank, other_list = d["main_tank"], d["other_list"]
+    ch2index = {v: index for index, v in enumerate(pos2ch_dic.values())}
 
 
 def pos2ch(s: str):
@@ -70,154 +42,180 @@ class PcrSpiders(Thread):
     def __init__(self, url):
         super().__init__()
         self.url = url
+        self.driver = None  # 浏览器
+        self.search = None  # 搜索按钮
+        self.character_list = []  # 人物列表对象
+
+    def crawl_ch(self, ch_lst: List[str]):
+        for ch in ch_lst:
+            chara = [self.character_list[ch2index[ch]] for ch in ch.split("|")]
+            logging.info("获取角色%s" % ch)
+            # 搜索阵容
+            for i in range(len(chara)):
+                ActionChains(self.driver).move_to_element(
+                    chara[i]).click(chara[i]).perform()
+                time.sleep(0.5)
+            time.sleep(common_wait_time)
+            ActionChains(self.driver).move_to_element(
+                self.search).click(self.search).perform()
+            time.sleep(common_wait_time)
+            while True:
+                _search = self.driver.find_element_by_class_name(
+                    "battle_search_button")
+                if _search.get_attribute("ant-click-animating-without-extra-node") == "false":
+                    break
+                time.sleep(common_wait_time)
+            time.sleep(common_wait_time)
+
+            # 获取get_team_page页防守阵容
+            res_list, next_but = None, None
+            while True:
+                # 每页结果阵容
+                while True:
+                    if res_list is None or res_list != self.driver.find_elements_by_class_name(
+                            "battle_search_single_result_ctn"):
+                        res_list = self.driver.find_elements_by_class_name(
+                            "battle_search_single_result_ctn")
+                        break
+                    else:
+                        time.sleep(common_wait_time)
+                if next_but is None:
+                    next_but = WebDriverWait(self.driver, 10).until(
+                        lambda driver: driver.find_element(By.XPATH, "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]"))
+                team_list, i = [], 0  # 计算列表数，好差评全为0时退出
+                for res in res_list:
+                    # 获取好评差评数
+                    good_comment = res.find_element_by_xpath(
+                        "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
+                    bad_comment = res.find_element_by_xpath(
+                        "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
+                    if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "" or int(good_comment) + int(bad_comment) < 5:
+                        i += 1
+                        continue
+                    timestamp = res.find_element_by_xpath(
+                        "./div[@class='battle_search_single_meta']/div[2]").text.strip()
+                    # 每个结果阵容
+                    defense_team, attack_team = "", ""
+                    team = res.find_elements_by_xpath(
+                        "./div[1]/div/div[2]/div/div[1]")
+                    for j in range(len(team)):
+                        c = pos2ch(team[j].get_attribute("style"))
+                        if c is None:
+                            defense_team = attack_team = ""
+                            break
+                        if j <= 4:
+                            attack_team += c + "|"
+                        else:
+                            defense_team += c + "|"
+                    if attack_team and defense_team:
+                        team_list.append(
+                            {
+                                "ATTACK_TEAM": attack_team[:-1],
+                                "DEFENSE_TEAM": defense_team[:-1],
+                                "GOOD_COMMENT": int(good_comment),
+                                "BAD_COMMENT": int(bad_comment),
+                                "CREATE_TIMESTAMP": timestamp
+                            }
+                        )
+                        logging.info("进攻方:%s 防守方:%s 好评:%s 差评:%s" % (
+                            attack_team[:-1], defense_team[:-1], good_comment, bad_comment))
+                if not team_list or i == len(res_list):
+                    break
+                # 入库
+                insert_team(team_list)
+                # 判断下一页是否能点击
+                is_next = self.driver.find_element_by_xpath(
+                    "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]").is_enabled()
+                if is_next:
+                    ActionChains(self.driver).move_to_element(
+                        next_but).click(next_but).perform()
+                    logging.info("%s阵容点击下一页" % ch)
+                    time.sleep(common_wait_time)
+                    # 判断弹窗
+                    win = self.driver.find_elements_by_xpath(
+                        "//div[@class='ant-modal-content']")
+                    if win:
+                        b = self.driver.find_element_by_xpath(
+                            "//div[@class='ant-modal-content']/div/div/div[2]/button")
+                        ActionChains(self.driver).move_to_element(
+                            b).click(b).perform()
+                        break
+                    while True:
+                        _next_but = self.driver.find_element_by_xpath(
+                            "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]")
+                        if _next_but.get_attribute("ant-click-animating-without-extra-node") == "false":
+                            break
+                        time.sleep(common_wait_time)
+                    time.sleep(common_wait_time)
+                else:
+                    time.sleep(common_wait_time)
+                    break
+            # 移出所选角色
+            ele = self.driver.find_elements_by_xpath(
+                "//div[@class='battle_search_select'][1]/div")
+            for i in range(1, len(chara) + 1):
+                ActionChains(self.driver).move_to_element(
+                    ele[i]).click(ele[i]).perform()
+                time.sleep(0.5)
+            self.driver.execute_script(
+                "var q=document.documentElement.scrollTop=0")
+            time.sleep(common_wait_time)
 
     def run(self):
         options = webdriver.chrome.options.Options()
         options.add_argument("--headless")
-        driver = webdriver.Chrome(options=options)
+        self.driver = webdriver.Chrome(options=options)
         # driver.implicitly_wait(5)
         '''隐式等待和显示等待都存在时，超时时间取二者中较大的'''
-        driver.get(self.url)
+        self.driver.get(self.url)
         time.sleep(common_wait_time)
 
         try:
             # 下拉菜单
-            menu = WebDriverWait(driver, 10).until(
+            menu = WebDriverWait(self.driver, 10).until(
                 lambda driver: driver.find_elements(By.CLASS_NAME, "ant-collapse-item"))
             logging.info("寻找下拉菜单成功")
             # 搜素按钮
-            search = WebDriverWait(driver, 10).until(
+            self.search = WebDriverWait(self.driver, 10).until(
                 lambda driver: driver.find_element(By.CLASS_NAME, "battle_search_button"))
             logging.info("寻找搜索按钮成功")
             time.sleep(common_wait_time)
             # 切换至国服
-            driver.find_element_by_xpath(
+            self.driver.find_element_by_xpath(
                 "//div[@class='body_margin_content'][1]/div/label[2]").click()
             logging.info("切换至国服")
             time.sleep(common_wait_time)
+
             for m in menu:
                 # 展开下拉菜单
-                ActionChains(driver).move_to_element(
+                ActionChains(self.driver).move_to_element(
                     m).click(m).perform()
                 time.sleep(common_wait_time)
                 # 人物列表
-                character_list = m.find_elements_by_xpath(
+                self.character_list += m.find_elements_by_xpath(
                     "./div[2]/div[1]/div")
-                for chara in character_list:
-                    # TODO 循环后显示'NoneType' object has no attribute 'group'
-                    # 获取人物
-                    try:
-                        ch = pos2ch(chara.get_attribute("style"))
-                    except AttributeError:
-                        raise
-                    # 排除角色
-                    if ch not in ch_whitelist:
-                        continue
-                    logging.info("获取角色%s" % ch)
-                    # 搜索阵容
-                    ActionChains(driver).move_to_element(
-                        chara).click(chara).perform()
-                    time.sleep(common_wait_time)
-                    ActionChains(driver).move_to_element(
-                        search).click(search).perform()
-                    time.sleep(common_wait_time)
-                    while True:
-                        _search = driver.find_element_by_class_name(
-                            "battle_search_button")
-                        if _search.get_attribute("ant-click-animating-without-extra-node") == "false":
-                            break
-                        time.sleep(common_wait_time)
-                    time.sleep(common_wait_time)
 
-                    # 获取get_team_page页防守阵容
-                    res_list, next_but = None, None
-                    while True:
-                        # 每页结果阵容
-                        while True:
-                            if res_list is None or res_list != driver.find_elements_by_class_name(
-                                    "battle_search_single_result_ctn"):
-                                res_list = driver.find_elements_by_class_name(
-                                    "battle_search_single_result_ctn")
-                                break
-                            else:
-                                time.sleep(common_wait_time)
-                        if next_but is None:
-                            next_but = WebDriverWait(driver, 10).until(
-                                lambda driver: driver.find_element(By.XPATH, "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]"))
-                        team_list, i = [], 0  # 计算列表数，好差评全为0时退出
-                        for res in res_list:
-                            # 获取好评差评数
-                            good_comment = res.find_element_by_xpath(
-                                "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
-                            bad_comment = res.find_element_by_xpath(
-                                "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
-                            if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "" or int(good_comment) + int(bad_comment) < 5:
-                                i += 1
-                                continue
-                            timestamp = res.find_element_by_xpath(
-                                "./div[@class='battle_search_single_meta']/div[2]").text.strip()
-                            # 每个结果阵容
-                            defense_team, attack_team = "", ""
-                            team = res.find_elements_by_xpath(
-                                "./div[1]/div/div[2]/div/div[1]")
-                            for j in range(len(team)):
-                                c = pos2ch(team[j].get_attribute("style"))
-                                if c is None:
-                                    defense_team = attack_team = ""
-                                    break
-                                if j <= 4:
-                                    attack_team += c + "|"
-                                else:
-                                    defense_team += c + "|"
-                            if attack_team and defense_team and ch in defense_team:
-                                team_list.append(
-                                    {
-                                        "ATTACK_TEAM": attack_team[:-1],
-                                        "DEFENSE_TEAM": defense_team[:-1],
-                                        "GOOD_COMMENT": int(good_comment),
-                                        "BAD_COMMENT": int(bad_comment),
-                                        "CREATE_TIMESTAMP": timestamp
-                                    }
-                                )
-                                logging.info("进攻方:%s 防守方:%s 好评:%s 差评:%s" % (
-                                    attack_team[:-1], defense_team[:-1], good_comment, bad_comment))
-                        if not team_list or i == len(res_list):
+            # 爬取各个人物
+            self.crawl_ch([ch_whitelist])
+
+            # 存储数据
+            ch_attend_and_win = get_ch_attend_and_win(
+                get_pcr_team(start_time=start_time))
+            ch_2_combo, my_chlist = [], set(main_tank + other_list)
+            for k, v in ch_attend_and_win["2"][0].items():
+                if v >= 5:
+                    for ch in k.split("|"):
+                        if ch not in my_chlist:
                             break
-                        # 入库
-                        insert_team(team_list)
-                        # 判断下一页是否能点击
-                        is_next = driver.find_element_by_xpath(
-                            "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]").is_enabled()
-                        if is_next:
-                            ActionChains(driver).move_to_element(
-                                next_but).click(next_but).perform()
-                            logging.info("%s阵容点击下一页" % ch)
-                            time.sleep(common_wait_time)
-                            # 判断弹窗
-                            win = driver.find_elements_by_xpath(
-                                "//div[@class='ant-modal-content']")
-                            if win:
-                                b = driver.find_element_by_xpath(
-                                    "//div[@class='ant-modal-content']/div/div/div[2]/button")
-                                ActionChains(driver).move_to_element(
-                                    b).click(b).perform()
-                                break
-                            while True:
-                                _next_but = driver.find_element_by_xpath(
-                                    "//div[@class='ant-btn-group ant-btn-group-sm']/button[2]")
-                                if _next_but.get_attribute("ant-click-animating-without-extra-node") == "false":
-                                    break
-                                time.sleep(common_wait_time)
-                            time.sleep(common_wait_time)
-                        else:
-                            time.sleep(common_wait_time)
-                            break
-                    # 移出所选角色
-                    ele = driver.find_element_by_xpath(
-                        "//div[@class='battle_search_select'][1]/div[2]")
-                    ActionChains(driver).move_to_element(
-                        ele).click(ele).perform()
-                    time.sleep(common_wait_time)
+                    else:
+                        ch_2_combo.append(k)
+            with open("pcr/conf/combo.json", "w") as f:
+                json.dump(ch_2_combo, f, ensure_ascii=False, indent=2)
+
+            # # 爬取组合
+            with open("pcr/conf/combo.json", "r") as f:
+                ch_2_combo = json.load(f)
+            self.crawl_ch(ch_2_combo)
         except TimeoutException:
             logging.error("网络超时")
             raise
@@ -225,7 +223,7 @@ class PcrSpiders(Thread):
             logging.error(e)
             # raise
         finally:
-            driver.quit()
+            self.driver.quit()
 
 
 def pcr_spider(log_q, url, headers):
