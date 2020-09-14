@@ -35,7 +35,9 @@ def pos2ch(s: str):
     r = re.match(
         r'.*?url\("(.*?)\.png\?.*?"\);.*?background-position:(.*?);.*?', s)
     url, pos = r.group(1).split("/")[-1], r.group(2)
-    return pos2ch_dic.get(pos.strip()) if url == "charas" else pos2ch_6x_dic.get(pos.strip()) if url == "charas6x" else None
+    ret = pos2ch_dic.get(pos.strip()) if url == "charas" else pos2ch_6x_dic.get(pos.strip()) if url == "charas6x" else None
+    logging.info("转换角色, url: %s pos: %s -> %s", url, pos, ret)
+    return ret
 
 
 class PcrSpiders(Thread):
@@ -196,7 +198,7 @@ class PcrSpiders(Thread):
                     "./div[2]/div[1]/div")
 
             # 爬取各个人物
-            self.crawl_ch([ch_whitelist])
+            self.crawl_ch(ch_whitelist)
 
             # 存储数据
             ch_attend_and_win = get_ch_attend_and_win(
@@ -212,7 +214,7 @@ class PcrSpiders(Thread):
             with open("pcr/conf/combo.json", "w") as f:
                 json.dump(ch_2_combo, f, ensure_ascii=False, indent=2)
 
-            # # 爬取组合
+            # 爬取组合
             with open("pcr/conf/combo.json", "r") as f:
                 ch_2_combo = json.load(f)
             self.crawl_ch(ch_2_combo)
