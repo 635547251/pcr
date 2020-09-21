@@ -36,7 +36,7 @@ def get_pcr_team(start_time="2020-04-17"):
             select_sql = '''
                     select
                         ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT
-                    from T_TEAM
+                    from T_PCR_TEAM
                     where
                         UPDATE_TIMESTAMP > '%s'
                 '''
@@ -51,26 +51,25 @@ def get_pcr_team(start_time="2020-04-17"):
 def insert_team(params: List[Dict]):
     '''
     插入数据
-    :param  参数列表
+    :params  参数列表
     '''
     conn = get_connection()
     with get_connection() as conn:
         with conn.cursor() as cursor:
             insert_sql = '''
                     insert into
-                        T_TEAM (ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT,
+                        T_PCR_TEAM (ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT,
                             CREATE_TIMESTAMP, UPDATE_TIMESTAMP)
                     values
-                        ("{ATTACK_TEAM}", "{DEFENSE_TEAM}", "{GOOD_COMMENT}", "{BAD_COMMENT}",
-                        "{CREATE_TIMESTAMP}", current_timestamp())
+                        ("%(ATTACK_TEAM)s", "%(DEFENSE_TEAM)s", "%(GOOD_COMMENT)s", 
+                        "%(BAD_COMMENT)s", "%(CREATE_TIMESTAMP)s", current_timestamp())
                     on duplicate key update
-                        GOOD_COMMENT = "{GOOD_COMMENT}",
-                        BAD_COMMENT = "{BAD_COMMENT}",
+                        GOOD_COMMENT = "%(GOOD_COMMENT)s",
+                        BAD_COMMENT = "%(BAD_COMMENT)s",
                         UPDATE_TIMESTAMP = current_timestamp()
                 '''
             try:
-                for param in params:
-                    cursor.execute(insert_sql.format(**param))
+                cursor.executemany(insert_sql, params)
                 conn.commit()
                 logging.info("插入表T_TEAM完成")
             except Exception as e:
