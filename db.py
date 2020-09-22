@@ -61,11 +61,11 @@ def insert_team(params: List[Dict]):
                         T_PCR_TEAM (ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT,
                             CREATE_TIMESTAMP, UPDATE_TIMESTAMP)
                     values
-                        ("%(ATTACK_TEAM)s", "%(DEFENSE_TEAM)s", "%(GOOD_COMMENT)s", 
-                        "%(BAD_COMMENT)s", "%(CREATE_TIMESTAMP)s", current_timestamp())
+                        (%(ATTACK_TEAM)s, %(DEFENSE_TEAM)s, %(GOOD_COMMENT)s,
+                        %(BAD_COMMENT)s, %(CREATE_TIMESTAMP)s, current_timestamp())
                     on duplicate key update
-                        GOOD_COMMENT = "%(GOOD_COMMENT)s",
-                        BAD_COMMENT = "%(BAD_COMMENT)s",
+                        GOOD_COMMENT = %(GOOD_COMMENT)s,
+                        BAD_COMMENT = %(BAD_COMMENT)s,
                         UPDATE_TIMESTAMP = current_timestamp()
                 '''
             try:
