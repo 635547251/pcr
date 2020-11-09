@@ -35,7 +35,8 @@ def pos2ch(s: str):
     r = re.match(
         r'.*?url\("(.*?)\.png\?.*?"\);.*?background-position:(.*?);.*?', s)
     url, pos = r.group(1).split("/")[-1], r.group(2)
-    ret = pos2ch_dic.get(pos.strip()) if url == "charas" else pos2ch_6x_dic.get(pos.strip()) if url == "charas6x" else None
+    ret = pos2ch_dic.get(pos.strip()) if url == "charas" else pos2ch_6x_dic.get(
+        pos.strip()) if url == "charas6x" else None
     logging.info("转换角色, url: %s pos: %s -> %s", url, pos, ret)
     return ret
 
@@ -91,7 +92,7 @@ class PcrSpiders(Thread):
                         "./div[@class='battle_search_single_meta']/div[1]/button[1]/span").text.strip()
                     bad_comment = res.find_element_by_xpath(
                         "./div[@class='battle_search_single_meta']/div[1]/button[2]/span").text.strip()
-                    if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "" or int(good_comment) + int(bad_comment) < 5:
+                    if good_comment == bad_comment == "0" or good_comment == "" or bad_comment == "":
                         i += 1
                         continue
                     timestamp = res.find_element_by_xpath(
@@ -166,6 +167,9 @@ class PcrSpiders(Thread):
     def run(self):
         options = webdriver.chrome.options.Options()
         options.add_argument("--headless")
+        options.add_argument("disable-infobars")  # 浏览器不显示受自动测试软件控制
+        options.add_argument("--disable-gpu")  # 谷歌文档提到需要加上这个属性来规避bug
+        options.add_argument("window-size=1920x3000")  # 指定浏览器分辨率
         self.driver = webdriver.Chrome(options=options)
         # driver.implicitly_wait(5)
         '''隐式等待和显示等待都存在时，超时时间取二者中较大的'''
@@ -177,6 +181,7 @@ class PcrSpiders(Thread):
             menu = WebDriverWait(self.driver, 10).until(
                 lambda driver: driver.find_elements(By.CLASS_NAME, "ant-collapse-item"))
             logging.info("寻找下拉菜单成功")
+            time.sleep(common_wait_time)
             # 搜素按钮
             self.search = WebDriverWait(self.driver, 10).until(
                 lambda driver: driver.find_element(By.CLASS_NAME, "battle_search_button"))
@@ -223,7 +228,7 @@ class PcrSpiders(Thread):
             raise
         except Exception as e:
             logging.error(e)
-            # raise
+            raise
         finally:
             self.driver.quit()
 
