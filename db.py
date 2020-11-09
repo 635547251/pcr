@@ -34,14 +34,17 @@ def get_pcr_team(start_time="2020-04-17"):
     with get_connection() as conn:
         with conn.cursor() as cursor:
             select_sql = '''
-                    select
-                        ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT
+                    select ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT
                     from T_PCR_TEAM
                     where
-                        UPDATE_TIMESTAMP > '%s'
+                        DEFENSE_TEAM in (
+                            select DEFENSE_TEAM from (
+                                select DEFENSE_TEAM, count(1) c from T_PCR_TEAM where UPDATE_TIMESTAMP > '%s' group by DEFENSE_TEAM) t
+                            where t.c > 1)
+                        and UPDATE_TIMESTAMP > '%s'
                 '''
             try:
-                cursor.execute(select_sql % start_time)
+                cursor.execute(select_sql % (start_time, start_time))
                 return cursor.fetchall()
             except Exception as e:
                 print(e)
