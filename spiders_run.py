@@ -9,11 +9,12 @@ from .spiders.pcr_spider import pcr_spider
 url = "https://www.pcrdfans.com/battle"
 
 # 随机获取ua
-f = json.loads(open("pcr/spiders/ua_headers.json", "r").read())
-ua_headers = []
-for ua_header in f.values():
-    ua_headers += ua_header
-headers = {"User-Agent": random.choice(ua_headers)}
+with open("pcr/spiders/ua_headers.json", "r", encoding="utf-8") as f:
+    d = json.load(f)
+    ua_headers = []
+    for ua_header in d.values():
+        ua_headers += ua_header
+    headers = {"User-Agent": random.choice(ua_headers)}
 
 
 def main():

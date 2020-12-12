@@ -13,7 +13,7 @@ from matplotlib import ticker
 from .config import data_path, proc_pool_size, ranking
 from .db import get_pcr_team
 
-with open("pcr/conf/ch.json", "r") as f:
+with open("pcr/conf/ch.json", "r", encoding="utf-8") as f:
     d = json.load(f)
     main_tank = d["main_tank"]
     other_list = d["other_list"]

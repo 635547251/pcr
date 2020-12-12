@@ -18,7 +18,7 @@ from ..db import get_pcr_team, insert_team
 from ..main import get_ch_attend_and_win
 from .logutil import init_logging
 
-with open("pcr/conf/ch.json", "r") as f:
+with open("pcr/conf/ch.json", "r", encoding="utf-8") as f:
     d = json.load(f)
     ch_whitelist = d["ch_whitelist"]
     pos2ch_dic, pos2ch_6x_dic = d["pos2ch_dic"], d["pos2ch_6x_dic"]
