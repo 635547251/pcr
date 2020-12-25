@@ -4,7 +4,6 @@ import logging
 import re
 import time
 from threading import Thread
-from typing import List
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -49,7 +48,7 @@ class PcrSpiders(Thread):
         self.search = None  # 搜索按钮
         self.character_list = []  # 人物列表对象
 
-    def crawl_ch(self, ch_lst: List[str]):
+    def crawl_ch(self, ch_lst: list[str]):
         for ch in ch_lst:
             chara = [self.character_list[ch2index[ch]] for ch in ch.split("|")]
             logging.info("获取角色%s" % ch)

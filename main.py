@@ -4,7 +4,6 @@ import json
 import os
 from collections import defaultdict
 from multiprocessing import Manager, Process
-from typing import DefaultDict, Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,15 +24,15 @@ plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
 
-def get_ch_attend_and_win(pcr_team: List[Tuple[str]]) -> Dict[str, Tuple[Dict[str, str]]]:
+def get_ch_attend_and_win(pcr_team: list[tuple[str]]) -> dict[str, tuple[dict[str, str]]]:
     '''
     统计1-4人组合出场率, 胜率
     :param  pcr_team            数据库查询结果
     :return ch_attend_and_time  各组合的xy轴字典
     '''
-    def backtrace(t_list: List[str], output_1: DefaultDict[int],
-                  output_2: DefaultDict[int], output_3: DefaultDict[int],
-                  output_4: DefaultDict[int], i=0, res=[]):
+    def backtrace(t_list: list[str], output_1: defaultdict[int],
+                  output_2: defaultdict[int], output_3: defaultdict[int],
+                  output_4: defaultdict[int], i=0, res=[]):
         '''
         获取所有人物组合
         '''
@@ -86,13 +85,13 @@ def get_ch_attend_and_win(pcr_team: List[Tuple[str]]) -> Dict[str, Tuple[Dict[st
     return ch_attend_and_time
 
 
-def get_ch_attend_and_win_chart(pcr_team: List[Tuple[str]]):
+def get_ch_attend_and_win_chart(pcr_team: list[tuple[str]]):
     '''
     获取各角色出场率胜率图表
     :param  pcr_team    数据库查询结果
     '''
-    def get_axis(ch_attend_time: Dict[str, int], ch_win_time: Dict[str, int],
-                 ch_lose_time: Dict[str, int]) -> Tuple[List]:
+    def get_axis(ch_attend_time: dict[str, int], ch_win_time: dict[str, int],
+                 ch_lose_time: dict[str, int]) -> tuple[list]:
         '''
         获取xy轴数据
         :param  ch_attend_time  出场次数
@@ -114,8 +113,8 @@ def get_ch_attend_and_win_chart(pcr_team: List[Tuple[str]]):
 
         return y_axis, x_axis1, x_axis2
 
-    def generate_chart(y_axis: List[str], x_axis1: List[str],
-                       x_axis2: List[str], title: str, height=0.8, n=2):
+    def generate_chart(y_axis: list[str], x_axis1: list[str],
+                       x_axis2: list[str], title: str, height=0.8, n=2):
         '''
         生成各角色出场率胜率图表
         :param  y_axis  y轴 角色
@@ -172,13 +171,13 @@ def get_ch_attend_and_win_chart(pcr_team: List[Tuple[str]]):
     plt.show()
 
 
-def get_mypjjc_team(pcr_team: List[Tuple[str]]):
+def get_mypjjc_team(pcr_team: list[tuple[str]]):
     '''
     获取我的pjjc所有阵容
     :param  pcr_team    数据库查询结果
     :return data        我的所有阵容
     '''
-    def backtrace(n: int, t_list: List[str], fd, i=0, res=[]):
+    def backtrace(n: int, t_list: list[str], fd, i=0, res=[]):
         if len(res) == n:
             d = {r: all_team[r] for r in res}
             print(str(d), file=fd)
@@ -246,7 +245,7 @@ def get_mypjjc_team(pcr_team: List[Tuple[str]]):
                     print(line.decode("utf-8"), file=fd)
 
 
-def get_bad_comment_rate(obj: List[List[str, int, int]]) -> float:
+def get_bad_comment_rate(obj: list[list[str, int, int]]) -> float:
     '''
     获取p场队伍总差评率
     :param obj  p场队伍列表

@@ -1,6 +1,5 @@
 import contextlib
 import logging
-from typing import Dict, List
 
 import pymysql
 
@@ -51,7 +50,7 @@ def get_pcr_team(start_time="2020-04-17"):
                 raise
 
 
-def insert_team(params: List[Dict]):
+def insert_team(params: list[dict[str, str]]):
     '''
     插入数据
     :params  参数列表
