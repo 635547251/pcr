@@ -209,7 +209,7 @@ class PcrSpiders(Thread):
                 get_pcr_team(start_time=start_time))
             ch_2_combo, my_chlist = [], set(main_tank + other_list)
             for k, v in ch_attend_and_win["2"][0].items():
-                if v >= 5:
+                if v >= 2:
                     for ch in k.split("|"):
                         if ch not in my_chlist:
                             break
