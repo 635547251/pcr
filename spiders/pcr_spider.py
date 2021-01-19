@@ -164,11 +164,23 @@ class PcrSpiders(Thread):
             time.sleep(common_wait_time)
 
     def run(self):
+        # 获取浏览器分辨率
+        driver = webdriver.Chrome()
+        try:
+            driver.maximize_window()
+            window_size = driver.get_window_size()
+            width, height = window_size["width"], window_size["height"]
+        except Exception as e:
+            logging.error(e)
+            raise
+        finally:
+            driver.quit()
+
         options = webdriver.chrome.options.Options()
         options.add_argument("--headless")
         options.add_argument("disable-infobars")  # 浏览器不显示受自动测试软件控制
         options.add_argument("--disable-gpu")  # 谷歌文档提到需要加上这个属性来规避bug
-        options.add_argument("window-size=1920x3000")  # 指定浏览器分辨率
+        options.add_argument("window-size=%s, %s" % (width, height))  # 指定浏览器分辨率
         self.driver = webdriver.Chrome(options=options)
         # driver.implicitly_wait(5)
         '''隐式等待和显示等待都存在时，超时时间取二者中较大的'''
