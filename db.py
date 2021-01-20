@@ -35,12 +35,9 @@ def get_pcr_team(start_time="2020-04-17"):
             select_sql = '''
                     select ATTACK_TEAM, DEFENSE_TEAM, GOOD_COMMENT, BAD_COMMENT
                     from T_PCR_TEAM
-                    where
-                        DEFENSE_TEAM in (
-                            select DEFENSE_TEAM from (
-                                select DEFENSE_TEAM, count(1) c from T_PCR_TEAM where UPDATE_TIMESTAMP > '%s' group by DEFENSE_TEAM) t
-                            where t.c > 1)
-                        and UPDATE_TIMESTAMP > '%s'
+                    where DEFENSE_TEAM in (
+                        select DEFENSE_TEAM from T_PCR_TEAM where UPDATE_TIMESTAMP >= '%s' group by DEFENSE_TEAM having count(DEFENSE_TEAM) > 1)
+                    and UPDATE_TIMESTAMP >= '%s'
                 '''
             try:
                 cursor.execute(select_sql % (start_time, start_time))

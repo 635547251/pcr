@@ -13,9 +13,7 @@ log_level = "INFO"
 
 common_wait_time = 3  # 通用等待时间
 
-start_time = "2020-11-04"  # 获取数据库数据的开始时间
-
-ranking = 10  # 获取排名前n名数据
+start_time = "2021-01-08"  # 获取数据库数据的开始时间
 
 data_path = "pcr/data"  # 爬取数据路径
 
