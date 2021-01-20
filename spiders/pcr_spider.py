@@ -180,7 +180,8 @@ class PcrSpiders(Thread):
         options.add_argument("--headless")
         options.add_argument("disable-infobars")  # 浏览器不显示受自动测试软件控制
         options.add_argument("--disable-gpu")  # 谷歌文档提到需要加上这个属性来规避bug
-        options.add_argument("window-size=%s, %s" % (width, height))  # 指定浏览器分辨率
+        options.add_argument("window-size=%s, %s" %
+                             (width, height))  # 指定浏览器分辨率
         self.driver = webdriver.Chrome(options=options)
         # driver.implicitly_wait(5)
         '''隐式等待和显示等待都存在时，超时时间取二者中较大的'''
@@ -216,7 +217,7 @@ class PcrSpiders(Thread):
             # 爬取各个人物
             self.crawl_ch(ch_whitelist)
 
-            # 存储数据
+            # 爬取2人组合
             ch_attend_and_win = get_ch_attend_and_win(
                 get_pcr_team(start_time=start_time))
             ch_2_combo, my_chlist = [], set(main_tank + other_list)
@@ -227,13 +228,25 @@ class PcrSpiders(Thread):
                             break
                     else:
                         ch_2_combo.append(k)
-            with open("pcr/conf/combo.json", "w") as f:
+            with open("pcr/conf/combo2.json", "w") as f:
                 json.dump(ch_2_combo, f, ensure_ascii=False, indent=2)
-
-            # 爬取组合
-            with open("pcr/conf/combo.json", "r") as f:
+            with open("pcr/conf/combo2.json", "r") as f:
                 ch_2_combo = json.load(f)
             self.crawl_ch(ch_2_combo)
+
+            # 爬取5人组合
+            ch_5_combo, pcr_team = [], get_pcr_team(start_time=start_time)
+            for _, defense_team, _, _ in pcr_team:
+                for ch in defense_team.split("|"):
+                    if ch not in my_chlist:
+                        break
+                    else:
+                        ch_5_combo.append(defense_team)
+            with open("pcr/conf/combo5.json", "w") as f:
+                json.dump(ch_5_combo, f, ensure_ascii=False, indent=2)
+            with open("pcr/conf/combo5.json", "r") as f:
+                ch_5_combo = json.load(f)
+            self.crawl_ch(ch_5_combo)
         except TimeoutException:
             logging.error("网络超时")
             raise
