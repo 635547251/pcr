@@ -76,6 +76,28 @@ def get_ch_attend_and_win(pcr_team: list[tuple[str]]) -> dict[str, tuple[dict[st
     return ch_attend_and_time
 
 
+def get_all_team(pcr_team: list[tuple[str]]):
+    '''
+    获取我的所有pjjc阵容记录
+    '''
+    _main_tank, my_chlist = set(main_tank), set(main_tank + other_list)
+    # 所有进攻角色、重复进攻角色、总好评、总差评
+    all_team = defaultdict(lambda: ([set(), None, 0, 0]))
+    for attack_team, defense_team, good_comment, bad_comment in pcr_team:
+        d_sp = defense_team.split("|")
+        for ch in d_sp:
+            if ch not in my_chlist or d_sp[-1] not in _main_tank:
+                break
+        else:
+            a_sp = attack_team.split("|")
+            all_team[defense_team][0].update(a_sp)
+            all_team[defense_team][1] = set(
+                a_sp) if all_team[defense_team][1] is None else all_team[defense_team][1] & set(a_sp)
+            all_team[defense_team][2] += good_comment
+            all_team[defense_team][3] += bad_comment
+    return all_team
+
+
 def get_mypjjc_team(pcr_team: list[tuple[str]]):
     '''
     获取我的pjjc所有阵容
@@ -117,24 +139,7 @@ def get_mypjjc_team(pcr_team: list[tuple[str]]):
                 if chunk_end > file_end:
                     break
 
-    # 获取我的所有pjjc阵容记录
-    _main_tank, my_chlist = set(main_tank), set(main_tank + other_list)
-    # 所有进攻角色、重复进攻角色、总好评、总差评
-    all_team = defaultdict(lambda: ([set(), None, 0, 0]))
-    for attack_team, defense_team, good_comment, bad_comment in pcr_team:
-        d_sp = defense_team.split("|")
-        for ch in d_sp:
-            if ch not in my_chlist or d_sp[-1] not in _main_tank:
-                break
-        else:
-            a_sp = attack_team.split("|")
-            all_team[defense_team][0].update(a_sp)
-            all_team[defense_team][1] = set(
-                a_sp) if all_team[defense_team][1] is None else all_team[defense_team][1] & set(a_sp)
-            all_team[defense_team][2] += good_comment
-            all_team[defense_team][3] += bad_comment
-
-    # TODO 回溯算法优化 大数据存储
+    all_team = get_all_team(pcr_team)
     filename = os.path.join(data_path, "data.txt")
     with open(filename, "w") as f:
         backtrace(3, list(all_team.keys()), f)

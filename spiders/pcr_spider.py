@@ -13,8 +13,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
 from ..config import common_wait_time, start_time
-from ..db import get_connection, get_pcr_team, insert_team
-from ..main import get_ch_attend_and_win
+from ..db import get_pcr_team, insert_team
+from ..main import get_all_team, get_ch_attend_and_win
 from .logutil import init_logging
 
 with open("pcr/conf/ch.json", "r", encoding="utf-8") as f:
@@ -220,9 +220,8 @@ class PcrSpiders(Thread):
             self.crawl_ch(ch_whitelist)
 
             # 爬取2人组合
-            ch_attend_and_win = get_ch_attend_and_win(
+            ch_2_combo, ch_attend_and_win = [], get_ch_attend_and_win(
                 get_pcr_team(start_time=start_time))
-            ch_2_combo = []
             for k, v in ch_attend_and_win["2"][0].items():
                 if v >= 2:
                     for ch in k.split("|"):
@@ -237,23 +236,11 @@ class PcrSpiders(Thread):
             self.crawl_ch(ch_2_combo)
 
             # 爬取5人组合
-            with get_connection() as conn:
-                with conn.cursor() as cursor:
-                    try:
-                        cursor.execute('''
-                            select DEFENSE_TEAM from T_PCR_TEAM where UPDATE_TIMESTAMP >= '%s' group by DEFENSE_TEAM having count(DEFENSE_TEAM) > 1
-                        ''' % start_time)
-                        pcr_team = cursor.fetchall()
-                    except Exception as e:
-                        print(e)
-                        raise
-            ch_5_combo = []
-            for defense_team in pcr_team:
-                for ch in defense_team[0].split("|"):
-                    if ch not in my_chlist:
-                        break
-                else:
-                    ch_5_combo.append(defense_team[0])
+            ch_5_combo, all_team = [], get_all_team(
+                get_pcr_team(start_time=start_time))
+            for k, v in all_team.items():
+                if v[1]:
+                    ch_5_combo.append(k)
             with open("pcr/conf/combo5.json", "w") as f:
                 json.dump(ch_5_combo, f, ensure_ascii=False, indent=2)
             with open("pcr/conf/combo5.json", "r") as f:
